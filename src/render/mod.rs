@@ -1,3 +1,9 @@
+#![allow(dead_code)]
+
+mod actions;
+#[cfg(test)]
+mod tests;
+
 use crate::render::Instruction::Overlap;
 use crate::types::prelude::*;
 
@@ -10,10 +16,10 @@ pub struct DrawingOptions {
 
 impl DrawingOptions {
     fn generate(size: Size) -> DrawingOptions {
-        return DrawingOptions {
-            fill: Color::from((0, 0, 0)),
-            offset: Position::from((0, 0)),
-            limit: size
+        DrawingOptions {
+            fill: Color::new(0, 0, 0, 1_f32),
+            offset: Position::new(0, 0),
+            limit: size,
         }
     }
 }
@@ -24,9 +30,9 @@ pub enum Instruction {
 }
 
 pub trait Surface {
-    fn draw(&mut self, instruction: Instruction, object: &impl Drawable, options: DrawingOptions);
+    fn draw(&mut self, instruction: Instruction, object: &dyn Drawable, options: DrawingOptions);
 
-    fn map_subsurface(&self, size: Size, position: Position) -> ProxySurface;
+    fn map_subsurface(self, size: Size, position: Position) -> ProxySurface;
 }
 
 pub struct FrameSurface {
@@ -35,23 +41,20 @@ pub struct FrameSurface {
 }
 
 impl Surface for FrameSurface {
-    fn draw(&self, instruction: Instruction, object: &impl Drawable, options: DrawingOptions) {
+    fn draw(&mut self, _instruction: Instruction, _object: &dyn Drawable, _options: DrawingOptions) {
         todo!()
     }
 
-    fn map_subsurface(&self, size: Size, position: Position) -> ProxySurface {
-        return ProxySurface::new(Box::new(self), size, position)
+    fn map_subsurface(self, size: Size, position: Position) -> ProxySurface {
+        ProxySurface::new(Box::new(self), size, position)
     }
 }
 
 impl FrameSurface {
     fn generate(size: Size, fill: Color) -> FrameSurface {
-        let mut set = PixelSet::empty();
+        let mut set = PixelSet::null();
         set.fill(size, fill);
-        return FrameSurface {
-            size,
-            data: set
-        }
+        FrameSurface { size, data: set }
     }
 }
 
@@ -63,7 +66,7 @@ pub struct ProxySurface {
 
 impl ProxySurface {
     fn new(parent_surface: Box<dyn Surface>, size: Size, position: Position) -> Self {
-        return ProxySurface {
+        ProxySurface {
             parent_surface,
             size,
             position,
@@ -72,8 +75,8 @@ impl ProxySurface {
 }
 
 impl Surface for ProxySurface {
-    fn draw(&mut self, instruction: Instruction, object: &impl Drawable, options: DrawingOptions) {
-        let mut modified_option = options.clone();
+    fn draw(&mut self, instruction: Instruction, object: &dyn Drawable, options: DrawingOptions) {
+        let mut modified_option = options;
         modified_option.offset.move_by_position(self.position);
 
         if modified_option.limit.x > self.size.x {
@@ -86,8 +89,8 @@ impl Surface for ProxySurface {
         self.parent_surface.draw(instruction, object, options)
     }
 
-    fn map_subsurface(&self, size: Size, position: Position) -> ProxySurface {
-        return ProxySurface::new(Box::new(self), size, position)
+    fn map_subsurface(self, size: Size, position: Position) -> ProxySurface {
+        ProxySurface::new(Box::new(self), size, position)
     }
 }
 

@@ -1,11 +1,3 @@
-pub use super::representation::{
-    Size,
-    Position,
-    Color,
-    PixelSet
-};
+pub use super::representation::{Color, PixelSet, Position, Size};
 
-pub use super::drawing::{
-    Drawable,
-    Effect
-};
+pub use super::drawing::{Drawable, Effect};

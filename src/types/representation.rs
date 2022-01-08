@@ -1,14 +1,8 @@
-use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::iter::Sum;
+use std::fmt::{Display, Formatter};
 use std::ops::{Index, Range};
-use font_kit::family_name::FamilyName;
-use crate::types::prelude::*;
-use font_kit::font::Font;
-use font_kit::properties::Properties;
-use font_kit::source::SystemSource;
 
-pub(crate) static CACHE: &mut HashMap<String, Vec<Vec<u8>>> = HashMap::new().into();
+
+static DEFAULT_RGBA: (u8, u8, u8, f32) = (0, 0, 0, 1_f32);
 
 
 /// Size in pixels.
@@ -21,12 +15,13 @@ pub struct Size {
 }
 
 impl Size {
-    pub(crate) fn new(x: usize, y: usize) -> Self {
+    pub fn new(x: usize, y: usize) -> Self {
         Size { x, y }
     }
 
-    fn swap_xy(&self) -> Self {
-        let mut result = self.clone();
+    pub fn swap_xy(&self) -> Self {
+        #![allow(dead_code)]
+        let mut result = *self;
         result.x += result.y;
         result.y = result.x - result.y;
         result.x -= result.y;
@@ -34,11 +29,11 @@ impl Size {
     }
 
     pub fn into_linear(self) -> usize {
-        self.x*self.y
+        self.x * self.y
     }
 
     pub fn null() -> Self {
-        return Self::new(0, 0)
+        Self::new(0, 0)
     }
 }
 
@@ -48,9 +43,9 @@ impl From<(usize, usize)> for Size {
     }
 }
 
-impl Into<(usize, usize)> for Size {
-    fn into(self) -> (usize, usize) {
-        (self.x, self.y)
+impl From<Size> for (usize, usize) {
+    fn from(item: Size) -> (usize, usize) {
+        (item.x, item.y)
     }
 }
 
@@ -67,7 +62,7 @@ pub struct Position {
 }
 
 impl Position {
-    fn new(x: usize, y: usize) -> Self {
+    pub fn new(x: usize, y: usize) -> Self {
         Self { x, y }
     }
 
@@ -76,9 +71,9 @@ impl Position {
         self.y += position.y;
     }
 
-    pub fn into_linear(self, size: Size) -> Result<usize, &'static str>{
-        let linear = self.x*size.y+self.y;
-        return if linear <= size.into_linear() {
+    pub fn into_linear(self, size: Size) -> Result<usize, &'static str> {
+        let linear = self.x * size.y + self.y;
+        if linear <= size.into_linear() {
             Ok(linear)
         } else {
             Err("Position is out of range")
@@ -92,9 +87,9 @@ impl From<(usize, usize)> for Position {
     }
 }
 
-impl Into<(usize, usize)> for Position {
-    fn into(self) -> (usize, usize) {
-        (self.x, self.y)
+impl From<Position> for (usize, usize) {
+    fn from(item: Position) -> Self {
+        (item.x, item.y)
     }
 }
 
@@ -109,14 +104,23 @@ pub struct Color {
 }
 
 impl Color {
-    fn new(r: u8, g: u8, b: u8, a: f32) -> Color {
-        Color {r, g, b, a}
+    pub fn new(r: u8, g: u8, b: u8, a: f32) -> Color {
+        Color { r, g, b, a }
+    }
+
+    pub fn default() -> Color {
+        Color::from(DEFAULT_RGBA)
     }
 }
 
 impl From<(u8, u8, u8)> for Color {
     fn from(item: (u8, u8, u8)) -> Self {
-        Color {r: item.0, g: item.1, b: item.2, a: 1 as f32 }
+        Color {
+            r: item.0,
+            g: item.1,
+            b: item.2,
+            a: 1_f32,
+        }
     }
 }
 
@@ -126,53 +130,61 @@ impl From<(u8, u8, u8, u8)> for Color {
             r: item.0,
             g: item.1,
             b: item.2,
-            a: (item.3 / 256) as f32,
+            a: (item.3 / 255) as f32,
         }
     }
 }
 
 impl From<(u8, u8, u8, f32)> for Color {
     fn from(item: (u8, u8, u8, f32)) -> Self {
-        Color {r: item.0, g: item.1, b: item.2, a: item.3 as f32 }
+        Color {
+            r: item.0,
+            g: item.1,
+            b: item.2,
+            a: item.3 as f32,
+        }
+    }
+}
+
+impl Display for Color {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {}, {}, {})", self.r, self.g, self.b, (self.a*255.).round() as u8)
     }
 }
 
 
 #[derive(Clone, Debug)]
 pub struct PixelSet {
-    size: Size,
-    data: Vec<Color>
+    pub size: Size,
+    pub data: Vec<Color>,
 }
 
 impl PixelSet {
-    pub fn empty() -> Self {
-        return Self {
-            size: Size::new(0, 0),
-            data: vec![]
-        }
-    }
-    pub fn new(size: Size, color: Color) -> Self {
-        return Self {
-            size: size.clone(),
-            data: vec![color; size.into_linear()]
+    pub fn null() -> Self {
+        Self {
+            size: Size::null(),
+            data: vec![],
         }
     }
 
-    pub fn get_size(&self) -> Size {
-        self.size
+    pub fn new(size: Size, color: Color) -> Self {
+        Self {
+            size,
+            data: vec![color; size.into_linear()],
+        }
     }
 
     pub fn fill(&mut self, size: Size, color: Color) {
-        self.size = size.clone();
+        self.size = size;
         self.data = vec![color; size.into_linear()];
     }
 }
 
 impl Index<Range<usize>> for PixelSet {
-    type Output = Vec<Color>;
+    type Output = [Color];
 
     fn index(&self, index: Range<usize>) -> &Self::Output {
-        return self.data[index].into()
+        &self.data[index]
     }
 }
 
@@ -180,31 +192,15 @@ impl Index<usize> for PixelSet {
     type Output = Color;
 
     fn index(&self, index: usize) -> &Self::Output {
-        self.data[index].into()
-    }
-}
-
-impl Into<Vec<Color>> for PixelSet {
-    fn into(self) -> Vec<Color> {
-        self.data
-    }
-}
-
-impl Into<Vec<u8>> for PixelSet {
-    fn into(self) -> Vec<u8> {
-        let mut result: Vec<u8> = vec![];
-        for pixel in self.data {
-            result.extend([pixel.r, pixel.g, pixel.b, pixel.a])
-        }
-        return result
+        &self.data[index]
     }
 }
 
 impl From<Vec<Color>> for PixelSet {
     fn from(item: Vec<Color>) -> Self {
-        return PixelSet {
+        PixelSet {
             size: Size::null(),
-            data: item
+            data: item,
         }
     }
 }
@@ -212,11 +208,60 @@ impl From<Vec<Color>> for PixelSet {
 impl From<Vec<u8>> for PixelSet {
     fn from(item: Vec<u8>) -> Self {
         let iter = item.into_iter().enumerate();
-        let r: Vec<u8> = iter.clone().filter(|&(i, _)| {i % 4 == 0}).map(|(_, e)| e).collect();
-        let g: Vec<u8> = iter.clone().filter(|&(i, _)| {i % 4 == 1}).map(|(_, e)| e).collect();
-        let b: Vec<u8> = iter.clone().filter(|&(i, _)| {i % 4 == 2}).map(|(_, e)| e).collect();
-        let a: Vec<f32> = iter.clone().filter(|&(i, _)| {i % 4 == 3}).map(|(_, e)| e/256).collect();
+        let r: Vec<u8> = iter
+            .clone()
+            .filter(|&(i, _)| i % 4 == 0)
+            .map(|(_, e)| e)
+            .collect();
+        let g: Vec<u8> = iter
+            .clone()
+            .filter(|&(i, _)| i % 4 == 1)
+            .map(|(_, e)| e)
+            .collect();
+        let b: Vec<u8> = iter
+            .clone()
+            .filter(|&(i, _)| i % 4 == 2)
+            .map(|(_, e)| e)
+            .collect();
+        let a: Vec<f32> = iter
+            .filter(|&(i, _)| i % 4 == 3)
+            .map(|(_, e)| (e / 255) as f32)
+            .collect();
         assert!((r.len() == g.len()) && (b.len() == a.len()) && (g.len() == b.len()));
-        (0..r.len()).into_iter().map(|v| { Color::from((r[v], g[v], b[v], a[v])) }).collect()
+        let res: Vec<Color> = (0..r.len())
+            .into_iter()
+            .map(|v| Color::from((r[v], g[v], b[v], a[v])))
+            .collect();
+        res.into()
+    }
+}
+
+impl From<PixelSet> for Vec<Color> {
+    fn from(item: PixelSet) -> Self {
+        item.data
+    }
+}
+
+impl From<PixelSet> for Vec<u8> {
+    fn from(item: PixelSet) -> Self {
+        let mut result: Vec<u8> = vec![];
+
+        for pixel in item.data {
+            result.extend([pixel.r, pixel.g, pixel.b, (pixel.a*255.).round() as u8])
+        }
+        result
+    }
+}
+
+impl PartialEq for Color {
+    fn eq(&self, other: &Self) -> bool {
+        return if (self.r == other.r) &&
+            (self.g == other.g) &&
+            (self.b == other.g) &&
+            (self.a == other.a) {
+            true
+        } else {
+            false
+        }
     }
 }

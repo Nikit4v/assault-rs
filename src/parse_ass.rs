@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub struct Time {
     hour: u32,
     minute: u32,
@@ -14,20 +15,17 @@ pub struct AssRow {
     margin_right: u32,
     margin_vertical: u32,
     effect: String,
-    text: String
+    text: String,
 }
 
+#[allow(clippy::iter_nth_zero)]
 impl From<String> for Time {
     fn from(s: String) -> Self {
-        let l = s.split(":");
+        let l = s.split(':');
         Self {
-            hour: (l[0] as String).parse::<u32>().unwrap(),
-            minute: (l[1] as String).parse::<u32>().unwrap(),
-            second: (l[2] as String).parse::<f32>().unwrap(),
+            hour:   (l.clone().nth(0).unwrap().to_string()).parse::<u32>().unwrap(),
+            minute: (l.clone().nth(1).unwrap().to_string()).parse::<u32>().unwrap(),
+            second: (l.clone().nth(2).unwrap().to_string()).parse::<f32>().unwrap(),
         }
     }
 }
-
-
-
-
