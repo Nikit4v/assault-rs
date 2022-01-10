@@ -1,13 +1,15 @@
 use std::fmt::{Display, Formatter};
-use std::ops::{Index, Range};
+use std::ops::{Index, IndexMut, Range, Sub};
 
 
 static DEFAULT_RGBA: (u8, u8, u8, f32) = (0, 0, 0, 1_f32);
 
 
 /// Size in pixels.
-/// x - vertical,
-/// y - horizontal
+///
+/// y - vertical,
+///
+/// x - horizontal
 #[derive(Copy, Clone, Debug)]
 pub struct Size {
     pub x: usize,
@@ -19,21 +21,25 @@ impl Size {
         Size { x, y }
     }
 
+    pub fn null() -> Self {
+        Self::new(0, 0)
+    }
+
     pub fn swap_xy(&self) -> Self {
         #![allow(dead_code)]
         let mut result = *self;
-        result.x += result.y;
-        result.y = result.x - result.y;
-        result.x -= result.y;
+        result.y += result.x;
+        result.x = result.y - result.x;
+        result.y -= result.x;
         result
     }
 
     pub fn into_linear(self) -> usize {
-        self.x * self.y
+        self.y * self.x
     }
 
-    pub fn null() -> Self {
-        Self::new(0, 0)
+    pub fn iter_positions(&self) -> PositionIterator {
+        PositionIterator::new(*self)
     }
 }
 
@@ -45,16 +51,27 @@ impl From<(usize, usize)> for Size {
 
 impl From<Size> for (usize, usize) {
     fn from(item: Size) -> (usize, usize) {
-        (item.x, item.y)
+        (item.y, item.x)
     }
 }
 
+impl From<(u32, u32)> for Size {
+    fn from(item: (u32, u32)) -> Self {
+        Self::new(item.0 as usize, item.1 as usize)
+    }
+}
+
+impl From<Size> for (u32, u32) {
+    fn from(item: Size) -> Self {
+        (item.y as u32, item.x as u32)
+    }
+}
 
 /// Position in pixels.
 ///
-/// x - vertical,
+/// y - vertical,
 ///
-/// y - horizontal
+/// x - horizontal
 #[derive(Copy, Clone, Debug)]
 pub struct Position {
     pub x: usize,
@@ -67,17 +84,28 @@ impl Position {
     }
 
     pub fn move_by_position(&mut self, position: Position) {
-        self.x += position.x;
         self.y += position.y;
+        self.x += position.x;
     }
 
     pub fn into_linear(self, size: Size) -> Result<usize, &'static str> {
-        let linear = self.x * size.y + self.y;
-        if linear <= size.into_linear() {
+        let linear = self.y * size.x + self.x;
+        if linear < size.into_linear() {
             Ok(linear)
         } else {
             Err("Position is out of range")
         }
+    }
+
+    pub fn add_if_out_of_size(&self, size: Size, x: i16, y: i16) -> Self {
+        let mut new_pos = *self;
+        if !(new_pos.x < size.x) {
+            new_pos.x = (x + new_pos.x as i16) as usize;
+        }
+        if !(new_pos.y < size.y) {
+            new_pos.y = (y + new_pos.y as i16) as usize;
+        }
+        return new_pos;
     }
 }
 
@@ -92,6 +120,25 @@ impl From<Position> for (usize, usize) {
         (item.x, item.y)
     }
 }
+
+impl Sub for Position {
+    type Output = Self;
+
+    fn sub(self, other: Position) -> Self::Output {
+        Self {
+            y: self.y - other.y,
+            x: self.x - other.x
+        }
+    }
+}
+
+impl Display for Position {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+
 
 
 /// Pixel color in rgba
@@ -110,6 +157,16 @@ impl Color {
 
     pub fn default() -> Color {
         Color::from(DEFAULT_RGBA)
+    }
+
+
+    pub fn mix(&self, other: &Color, coefficient: f64) -> Color {
+        Self {
+            r: (self.r as f64 * coefficient + other.r as f64 * (1. - coefficient)) as u8,
+            g: (self.g as f64 * coefficient + other.g as f64 * (1. - coefficient)) as u8,
+            b: (self.b as f64 * coefficient + other.b as f64 * (1. - coefficient)) as u8,
+            a: self.a * coefficient as f32 + other.a * (1. - coefficient as f32)
+        }
     }
 }
 
@@ -152,6 +209,19 @@ impl Display for Color {
     }
 }
 
+impl PartialEq for Color {
+    fn eq(&self, other: &Self) -> bool {
+        return if (self.r == other.r) &&
+            (self.g == other.g) &&
+            (self.b == other.g) &&
+            (self.a == other.a) {
+            true
+        } else {
+            false
+        }
+    }
+}
+
 
 #[derive(Clone, Debug)]
 pub struct PixelSet {
@@ -174,9 +244,67 @@ impl PixelSet {
         }
     }
 
+    pub fn from_rgb8(rgb8: &[u8], size: Size) -> Self {
+        let iter = rgb8.into_iter().enumerate();
+        let r: Vec<u8> = iter
+            .clone()
+            .filter(|&(i, _)| i % 3 == 0)
+            .map(|(_, e)| *e)
+            .collect();
+        let g: Vec<u8> = iter
+            .clone()
+            .filter(|&(i, _)| i % 3 == 1)
+            .map(|(_, e)| *e)
+            .collect();
+        let b: Vec<u8> = iter
+            .clone()
+            .filter(|&(i, _)| i % 3 == 2)
+            .map(|(_, e)| *e)
+            .collect();
+        assert_eq!(r.len(), g.len());
+        assert_eq!(r.len(), b.len());
+        let res: Vec<Color> = (0..r.len())
+            .into_iter()
+            .map(|v| Color::new(r[v], g[v], b[v], 1.))
+            .collect();
+        let mut res: Self = res.into();
+        res.size = size;
+        res
+    }
+
+
     pub fn fill(&mut self, size: Size, color: Color) {
         self.size = size;
         self.data = vec![color; size.into_linear()];
+    }
+
+    pub fn get_color(&self, position: Position) -> Result<Color, &str> {
+        Ok(self.data[position.into_linear(self.size)?])
+    }
+
+    pub fn get_color_ref(&self, position: Position) -> &Color {
+        match position.into_linear(self.size.clone()) {
+            Ok(linear_position) => {
+                self.data.index(linear_position)
+            }
+            Err(_) => {
+            panic!("{} is incorrect with size ({}, {})", position, self.size.x, self.size.y)
+            }
+        }
+    }
+
+    pub unsafe fn get_color_ref_unchecked(&self, position: &Position)-> &Color {
+        self.data.index(position.y * self.size.x + position.x)
+    }
+
+    pub fn set_color(&mut self, position: Position, value: Color) -> Result<(), &str> {
+        self.data[position.into_linear(self.size)?] = value; Ok(())
+    }
+
+    pub fn with_changed_size(&self, size: Size) -> PixelSet {
+        let mut new = self.clone();
+        new.size = size;
+        return new;
     }
 }
 
@@ -253,15 +381,34 @@ impl From<PixelSet> for Vec<u8> {
     }
 }
 
-impl PartialEq for Color {
-    fn eq(&self, other: &Self) -> bool {
-        return if (self.r == other.r) &&
-            (self.g == other.g) &&
-            (self.b == other.g) &&
-            (self.a == other.a) {
-            true
-        } else {
-            false
+impl IndexMut<usize> for PixelSet {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.data[index]
+    }
+}
+
+
+pub struct PositionIterator(Size, usize, usize);
+
+impl Iterator for PositionIterator {
+    type Item = Position;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let pos: Position = (self.1, self.2).into();  // Save value
+        if self.2 >= self.0.y {  // return None if not exists
+            return None;
         }
+        self.1 += 1;  // move carriage
+        if self.0.x == self.1 {
+            self.1 = 0;  // revert carriage
+            self.2 += 1;  // next line
+        }
+        return Some(pos);
+    }
+}
+
+impl PositionIterator {
+    fn new(size: Size) -> Self {
+        Self(size, 0, 0)
     }
 }
