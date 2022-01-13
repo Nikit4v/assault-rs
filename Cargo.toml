@@ -11,9 +11,11 @@ font-kit = "0.10.1"
 pathfinder_geometry = "0.5.1"
 image = "0.23.14"
 rayon = "1.5.1"
-ndarray = { version="0.15.4", features=["rayon", "serde"]}
+ndarray = { version="0.14", features=["rayon", "serde"]}
 serde = "1.0.133"
 serde_json = "1.0.74"
+ndarray-stats = "0.4"
+ndarray-image = "0.3"
 
 [[bin]]
 name = "assault-cli"
