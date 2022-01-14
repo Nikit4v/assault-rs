@@ -24,7 +24,7 @@ impl<'a> Surface<'a> {
 
 
     pub fn apply_action(&mut self, action: &'a dyn Action) {
-        self.actions_to_apply.push(action);
+        self.actions_to_apply.schedule(Box::new(action))
     }
 
 

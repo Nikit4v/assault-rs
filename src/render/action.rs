@@ -1,5 +1,3 @@
-pub trait Action {
-    fn apply(&self) {
-
-    }
+pub trait Action where Self: Sized {
+    fn apply(&self);
 }
