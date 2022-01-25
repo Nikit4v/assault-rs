@@ -1,8 +1,6 @@
-use ndarray::{
-    Array3,
-    Zip
-};
-use rayon::prelude::IntoParallelRefIterator;
+use ndarray::{Array3, s, Zip};
+use crate::render::backend::Shape;
+
 use super::{
     TransactionResult,
     Backend,
@@ -14,14 +12,14 @@ pub struct CpuBackend {
 }
 
 impl Backend for CpuBackend {
-    fn allocate_frame(&mut self) -> ptr {
-        self.data.push(Array3::default((0, 0, 0)));
+    fn allocate_frame(&mut self, shape: Shape) -> ptr {
+        self.data.push(Array3::default(shape));
         self.data.len()-1
     }
 
-    fn load_frame(&mut self, output_frame_ptr: ptr, raw_data: &[u8], shape: (usize, usize, usize)) {
+    fn load_frame(&mut self, output_frame_ptr: ptr, raw_data: &[u8]) {
         let vec = Vec::from(raw_data);
-        let ndar = Array3::<u8>::from_shape_vec(shape, vec).unwrap();
+        let ndar = Array3::<u8>::from_shape_vec(self.data[output_frame_ptr].dim(), vec).unwrap();
         self.data[output_frame_ptr] = ndar;
     }
 
@@ -43,8 +41,11 @@ impl Backend for CpuBackend {
         Ok(())
     }
 
+    fn resize(&mut self, source_frame_ptr: ptr, output_frame_ptr: ptr) -> TransactionResult {
+        todo!()
+    }
 
-    fn resize(&mut self, source_frame_ptr: usize, output_frame_ptr: usize, output_resolution: (usize, usize)) -> TransactionResult {
+    fn extend(&mut self, source_frame_ptr: ptr, output_frame_ptr: ptr, output_alpha_frame_ptr: ptr, offset: Shape) -> TransactionResult {
         todo!()
     }
 }

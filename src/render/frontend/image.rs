@@ -1,36 +1,33 @@
 use image::ImageResult;
-use crate::render::backend::{Backend, ptr};
+use crate::render::backend::{Backend, ptr, Shape};
 extern crate image;
 
-pub struct LoadedImage<'a, T> where T: Backend {
-    pub backend_ptr: ptr,
+pub struct LoadedImage {
+    pub image_ptr: ptr,
     pub alpha_mask_ptr: Option<ptr>,
-    pub backend: &'a T,
-
-    pub shape: (usize, usize, usize)
+    pub shape: (usize, usize, usize),
 }
 
-impl<'a, T: Backend> LoadedImage<'a, T> {
+impl LoadedImage {
 
-    pub fn from_bytes(bytes: &[u8], shape: (usize, usize, usize), backend: &'a mut T) -> Self {
-        let image_ptr = backend.allocate_frame();
-        backend.load_frame(image_ptr, bytes, shape);
+    pub fn from_bytes<T: Backend>(bytes: &[u8], shape: Shape, mut_backend: &mut T) -> Self {
+        let image_ptr = mut_backend.allocate_frame(shape);
+        mut_backend.load_frame(image_ptr, bytes);
         Self {
-            backend_ptr: image_ptr,
+            image_ptr,
             alpha_mask_ptr: None,
-            backend: backend as &'a T,
             shape
         }
     }
 
-    pub fn add_alpha_mask(&mut self, bytes: &[u8], mut_backend: &mut T) -> Result<(), &str>{
-        let alpha_ptr = mut_backend.allocate_frame();
-        mut_backend.load_frame(alpha_ptr, bytes, self.shape);
+    pub fn add_alpha_mask<T: Backend>(&mut self, bytes: &[u8], mut_backend: &mut T) -> Result<(), &str>{
+        let alpha_ptr = mut_backend.allocate_frame(self.shape);
+        mut_backend.load_frame(alpha_ptr, bytes);
         self.alpha_mask_ptr = Some(alpha_ptr);
         Ok(())
     }
 
-    pub fn load_png(path: &str, backend: &'a mut T) -> ImageResult<LoadedImage<'a, T>> {
+    pub fn load_png<T: Backend>(path: &str, backend: &mut T) -> ImageResult<LoadedImage> {
         let basic_image = image::open(path)?.into_rgba8();
 
         let image_shape = (basic_image.height() as usize, basic_image.width() as usize, 3);
@@ -47,7 +44,9 @@ impl<'a, T: Backend> LoadedImage<'a, T> {
             colors.push(x.0[2]);
         });
         let mut image = Self::from_bytes(&colors, image_shape, backend);
-        image.add_alpha_mask(&alphas, backend);
+        image.add_alpha_mask(&alphas, backend).unwrap_or_else(|x| {
+            println!("Failed to add alpha with {x}")
+        });
         Ok(image)
     }
 }

@@ -1,3 +1,4 @@
+use crate::render::backend::Shape;
 use super::{Backend, TransactionResult, ptr};
 
 struct GpuBackend {
@@ -5,11 +6,11 @@ struct GpuBackend {
 }
 
 impl Backend for GpuBackend {
-    fn allocate_frame(&mut self) -> ptr {
+    fn allocate_frame(&mut self, shape: Shape) -> ptr {
         todo!()
     }
 
-    fn load_frame(&mut self, output_frame_ptr: ptr, raw_data: &[u8], shape: (usize, usize, usize)) {
+    fn load_frame(&mut self, output_frame_ptr: ptr, raw_data: &[u8]) {
         todo!()
     }
 
@@ -17,7 +18,11 @@ impl Backend for GpuBackend {
         todo!()
     }
 
-    fn resize(&mut self, source_frame_ptr: ptr, output_frame_ptr: ptr, output_resolution: (usize, usize)) -> TransactionResult {
+    fn resize(&mut self, source_frame_ptr: ptr, output_frame_ptr: ptr, output_shape: Shape) -> TransactionResult {
+        todo!()
+    }
+
+    fn extend(&mut self, source_frame_ptr: ptr, output_frame_ptr: ptr, output_shape: Shape, offset: Shape) -> TransactionResult {
         todo!()
     }
 }
