@@ -26,27 +26,27 @@ impl LoadedImage {
         self.alpha_mask_ptr = Some(alpha_ptr);
         Ok(())
     }
+}
 
-    pub fn load_png<T: Backend>(path: &str, backend: &mut T) -> ImageResult<LoadedImage> {
-        let basic_image = image::open(path)?.into_rgba8();
+pub fn load_png<T: Backend>(path: &str, backend: &mut T) -> ImageResult<LoadedImage> {
+    let basic_image = image::open(path)?.into_rgba8();
 
-        let image_shape = (basic_image.height() as usize, basic_image.width() as usize, 3);
-        let mut alphas: Vec<u8> = Vec::with_capacity(image_shape.0 * image_shape.1 * image_shape.2);
-        basic_image.pixels().for_each(|x| {
-            alphas.push(x.0[3]);
-            alphas.push(x.0[3]);
-            alphas.push(x.0[3]);
-        });
-        let mut colors: Vec<u8> = Vec::with_capacity(image_shape.0 * image_shape.1 * image_shape.2);
-        basic_image.pixels().for_each(|x| {
-            colors.push(x.0[0]);
-            colors.push(x.0[1]);
-            colors.push(x.0[2]);
-        });
-        let mut image = Self::from_bytes(&colors, image_shape, backend);
-        image.add_alpha_mask(&alphas, backend).unwrap_or_else(|x| {
-            println!("Failed to add alpha with {x}")
-        });
-        Ok(image)
-    }
+    let image_shape = (basic_image.height() as usize, basic_image.width() as usize, 3);
+    let mut alphas: Vec<u8> = Vec::with_capacity(image_shape.0 * image_shape.1 * image_shape.2);
+    basic_image.pixels().for_each(|x| {
+        alphas.push(x.0[3]);
+        alphas.push(x.0[3]);
+        alphas.push(x.0[3]);
+    });
+    let mut colors: Vec<u8> = Vec::with_capacity(image_shape.0 * image_shape.1 * image_shape.2);
+    basic_image.pixels().for_each(|x| {
+        colors.push(x.0[0]);
+        colors.push(x.0[1]);
+        colors.push(x.0[2]);
+    });
+    let mut image = LoadedImage::from_bytes(&colors, image_shape, backend);
+    image.add_alpha_mask(&alphas, backend).unwrap_or_else(|x| {
+        println!("Failed to add alpha with {x}")
+    });
+    Ok(image)
 }
