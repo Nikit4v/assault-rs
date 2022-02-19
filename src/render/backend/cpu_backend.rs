@@ -77,10 +77,10 @@ impl Backend for CpuBackend {
             if idx as i128 + offset.0 >= self.data[output_frame_ptr].shape()[0] as i128 || idx as i128 +offset.0 < 0 {
                 continue
             }
-            if idy as i128 + offset.1 >= self.data[output_frame_ptr].shape()[0] as i128 || idy as i128 +offset.1 < 0 {
+            if idy as i128 + offset.1 >= self.data[output_frame_ptr].shape()[1] as i128 || idy as i128 +offset.1 < 0 {
                 continue
             }
-            if idz as i128 + offset.2 >= self.data[output_frame_ptr].shape()[0] as i128 || idz as i128 +offset.2 < 0 {
+            if idz as i128 + offset.2 >= self.data[output_frame_ptr].shape()[2] as i128 || idz as i128 +offset.2 < 0 {
                 continue
             }
             self.data[output_frame_ptr][[(idx as i128 + offset.0) as usize, (idy as i128 + offset.1) as usize, (idz as i128 + offset.2) as usize]] = *item

@@ -30,8 +30,7 @@ impl LoadedImage {
 
 pub fn load_png<T: Backend>(path: &str, backend: &mut T) -> ImageResult<LoadedImage> {
     let basic_image = image::open(path)?.into_rgba8();
-
-    let image_shape = (basic_image.height() as usize, basic_image.width() as usize, 3);
+    let image_shape = (basic_image.dimensions().0 as usize, basic_image.dimensions().1 as usize, 3);
     let mut alphas: Vec<u8> = Vec::with_capacity(image_shape.0 * image_shape.1 * image_shape.2);
     basic_image.pixels().for_each(|x| {
         alphas.push(x.0[3]);
@@ -44,9 +43,10 @@ pub fn load_png<T: Backend>(path: &str, backend: &mut T) -> ImageResult<LoadedIm
         colors.push(x.0[1]);
         colors.push(x.0[2]);
     });
+    colors.reverse();
     let mut image = LoadedImage::from_bytes(&colors, image_shape, backend);
     image.add_alpha_mask(&alphas, backend).unwrap_or_else(|x| {
-        println!("Failed to add alpha with {x}")
+        println!("Failed to add alpha with {x}", x=x)
     });
     Ok(image)
 }
